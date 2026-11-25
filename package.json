@@ -1,7 +1,7 @@
 {
   "name": "belive-aihub",
-  "version": "0.3.0",
-  "description": "BeLive AI Hub launcher and setup CLI for Claude Code, Codex CLI, and Antigravity CLI",
+  "version": "0.4.0",
+  "description": "BeLive AI Hub launcher and setup CLI for Claude Code, Codex CLI, DeepSeek Harness, OpenCode, and Antigravity CLI",
   "type": "module",
   "bin": {
     "aihub": "./dist/cli.js"
@@ -37,6 +37,8 @@
     "aihub",
     "claude-code",
     "codex",
+    "deepseek-harness",
+    "opencode",
     "antigravity",
     "llm",
     "cli"

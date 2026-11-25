@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { buildAgyInvocation, checkAgySupport } from "./adapters/agy.js";
 import { buildClaudeInvocation } from "./adapters/claude.js";
 import { buildCodexInvocation, detectCodexSupportsNoDaemon } from "./adapters/codex.js";
+import { buildDshInvocation } from "./adapters/dsh.js";
+import { buildOpenCodeInvocation } from "./adapters/opencode.js";
 import { resolveBinaryOnPath, runDoctor } from "./commands/doctor.js";
 import { runSetup } from "./commands/setup.js";
 import {
@@ -31,20 +33,24 @@ function readCliVersion(): string {
 
 export const CLI_VERSION = readCliVersion();
 
-const INSTALL_HINTS: Record<"claude" | "codex" | "agy", string> = {
+const INSTALL_HINTS: Record<"claude" | "codex" | "agy" | "dsh" | "opencode", string> = {
   claude: "https://code.claude.com/docs/en/quickstart",
   codex: "npm install -g @openai/codex",
   agy: "Install Google Antigravity CLI ('agy') and ensure it is on your PATH",
+  dsh: "npm install -g @deepseek-ai/dsh (requires Node.js >= 24.9.0)",
+  opencode: "npm install -g opencode-ai (or https://opencode.ai/docs/)",
 };
 
-const HELP_TEXT = `aihub v${CLI_VERSION} — BeLive AI Hub launcher for Claude Code, Codex CLI, and Antigravity CLI
+const HELP_TEXT = `aihub v${CLI_VERSION} — BeLive AI Hub launcher for Claude Code, Codex CLI, DeepSeek Harness, OpenCode, and Antigravity CLI
 
 Usage:
-  aihub setup  [--open] [--clear]
-  aihub doctor [--base-url <origin>] [--smoke]
-  aihub claude [--base-url <origin>] [--model <id>] [<claude args...>]
-  aihub codex  [--base-url <origin>] [--model <id>] [--effort low|medium|high|xhigh] [<codex args...>]
-  aihub agy    [--base-url <origin>] [--model <id>] [<agy args...>]   (experimental, requires agy >= 1.5)
+  aihub setup    [--open] [--clear]
+  aihub doctor   [--base-url <origin>] [--smoke]
+  aihub claude   [--base-url <origin>] [--model <id>] [<claude args...>]
+  aihub codex    [--base-url <origin>] [--model <id>] [--effort low|medium|high|xhigh] [<codex args...>]
+  aihub dsh      [--base-url <origin>] [--model <id>] [--effort <level>] [<dsh args...>]
+  aihub opencode [--base-url <origin>] [--model <id>] [<opencode args...>]
+  aihub agy      [--base-url <origin>] [--model <id>] [<agy args...>]   (experimental, requires agy >= 1.5)
 
 Credentials & environment:
   1. BELIVE_TOKENHUB_API_KEY   Primary env var (recommended for CI/scripts; avoids clashing with Tencent TokenHub's TOKENHUB_API_KEY)
@@ -57,6 +63,8 @@ Notes & boundaries:
   - Child processes inherit the resolved key in their environment; use a dedicated workspace key with a spend cap.
   - 'aihub claude' shares ~/.claude (note: MDM or server-delivered Claude managed policy is not locally inspectable).
   - 'aihub codex' uses an isolated static CODEX_HOME (~/.aihub/codex/<env>) and does not read ~/.codex.
+  - 'aihub dsh' uses an isolated DSH_HOME (~/.aihub/dsh/<env>) with cordis.patch.yml and unsets DEEPSEEK_API_KEY so web-search plugins never leak keys.
+  - 'aihub opencode' injects runtime OPENCODE_CONFIG_CONTENT without modifying opencode.json or ~/.config/opencode.
   - 'aihub agy' (experimental, requires agy >= 1.5) shares ~/.gemini/antigravity-cli using session-only 'agy --settings'. AI Hub serves Gemini 4 Argon, Carbon, Hydrogen, and 3.8/3.7/3.6 Flash (not Neon).
 `;
 
@@ -73,7 +81,7 @@ export interface RunCliDeps {
 }
 
 interface ParsedCommandLine {
-  command: "help" | "version" | "setup" | "doctor" | "claude" | "codex" | "agy";
+  command: "help" | "version" | "setup" | "doctor" | "claude" | "codex" | "agy" | "dsh" | "opencode";
   env?: string;
   baseUrl?: string;
   model?: string;
@@ -125,7 +133,15 @@ function parseCommandLine(argv: readonly string[]): ParsedCommandLine {
         [baseUrl, i] = takeFlagValue(argv, i, "--base-url");
         continue;
       }
-      if (arg === "setup" || arg === "doctor" || arg === "claude" || arg === "codex" || arg === "agy") {
+      if (
+        arg === "setup" ||
+        arg === "doctor" ||
+        arg === "claude" ||
+        arg === "codex" ||
+        arg === "agy" ||
+        arg === "dsh" ||
+        arg === "opencode"
+      ) {
         command = arg;
         continue;
       }
@@ -195,7 +211,10 @@ function parseCommandLine(argv: readonly string[]): ParsedCommandLine {
       [model, i] = takeFlagValue(argv, i, "--model");
       continue;
     }
-    if (command === "codex" && (arg === "--effort" || arg.startsWith("--effort="))) {
+    if (
+      (command === "codex" || command === "dsh") &&
+      (arg === "--effort" || arg.startsWith("--effort="))
+    ) {
       [effort, i] = takeFlagValue(argv, i, "--effort");
       continue;
     }
@@ -341,6 +360,59 @@ export async function runCli(argv: readonly string[], deps: RunCliDeps = {}): Pr
         forwardedArgs: parsed.forwardedArgs,
       });
       return await spawnHarness({ binPath, args: inv.args, env: inv.env, cwd });
+    }
+
+    if (parsed.command === "opencode") {
+      const inv = buildOpenCodeInvocation({
+        target,
+        apiKey: resolvedCred.key,
+        model: parsed.model,
+        parentEnv: env,
+        forwardedArgs: parsed.forwardedArgs,
+      });
+      return await spawnHarness({ binPath, args: inv.args, env: inv.env, cwd });
+    }
+
+    if (parsed.command === "dsh") {
+      const inv = buildDshInvocation({
+        aihubHome,
+        target,
+        apiKey: resolvedCred.key,
+        model: parsed.model,
+        effort: parsed.effort,
+        parentEnv: env,
+        forwardedArgs: parsed.forwardedArgs,
+      });
+      const onProcessExit = () => {
+        try {
+          inv.cleanup();
+        } catch (err) {
+          const raw = err instanceof Error ? err.message : String(err);
+          writeStderr(`aihub: ${scrubSecrets(raw, knownSecrets)}\n`);
+          process.exitCode = process.exitCode || 1;
+        }
+      };
+      process.once("exit", onProcessExit);
+      let childCode = 0;
+      let spawnErr: unknown = null;
+      try {
+        childCode = await spawnHarness({ binPath, args: inv.args, env: inv.env, cwd });
+      } catch (err) {
+        spawnErr = err;
+      } finally {
+        process.removeListener("exit", onProcessExit);
+      }
+      try {
+        inv.cleanup();
+      } catch (cleanupErr) {
+        const raw = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+        writeStderr(`aihub: ${scrubSecrets(raw, knownSecrets)}\n`);
+        if (!spawnErr && childCode === 0) {
+          return 1;
+        }
+      }
+      if (spawnErr) throw spawnErr;
+      return childCode;
     }
 
     const agySupport = checkAgySupport(binPath, env);
