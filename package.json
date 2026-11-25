@@ -1,0 +1,50 @@
+{
+  "name": "belive-aihub",
+  "version": "0.3.0",
+  "description": "BeLive AI Hub launcher and setup CLI for Claude Code, Codex CLI, and Antigravity CLI",
+  "type": "module",
+  "bin": {
+    "aihub": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/belivetech/aihub-cli.git"
+  },
+  "homepage": "https://aihub.belive.sg/docs/cli",
+  "bugs": {
+    "url": "https://github.com/belivetech/aihub-cli/issues"
+  },
+  "keywords": [
+    "belive",
+    "aihub",
+    "claude-code",
+    "codex",
+    "antigravity",
+    "llm",
+    "cli"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^5.1.1"
+  }
+}
