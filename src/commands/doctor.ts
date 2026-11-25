@@ -159,10 +159,10 @@ export async function runDoctor(opts: RunDoctorOptions): Promise<number> {
 
   // 3. Installed binaries, version floors, parent shell env, & Claude settings preflight
   const versionSpecs: Array<{
-    bin: "claude" | "codex";
+    bin: "claude" | "codex" | "dsh" | "opencode";
     label: string;
-    warnBelow: [number, number, number];
-    warnReason: string;
+    warnBelow?: [number, number, number];
+    warnReason?: string;
   }> = [
     {
       bin: "claude",
@@ -177,6 +177,14 @@ export async function runDoctor(opts: RunDoctorOptions): Promise<number> {
       warnBelow: [0, 144, 0],
       warnReason: "older than minimum tested 0.144.0",
     },
+    {
+      bin: "dsh",
+      label: "dsh",
+    },
+    {
+      bin: "opencode",
+      label: "opencode",
+    },
   ];
 
   for (const spec of versionSpecs) {
@@ -187,7 +195,7 @@ export async function runDoctor(opts: RunDoctorOptions): Promise<number> {
     }
     const verStr = readBinaryVersion(found, env);
     const parsedVer = parseSemver(verStr);
-    if (parsedVer && isSemverLess(parsedVer, spec.warnBelow)) {
+    if (spec.warnBelow && spec.warnReason && parsedVer && isSemverLess(parsedVer, spec.warnBelow)) {
       write(`[WARN] binary ${spec.label}: ${verStr} (${found}) — ${spec.warnReason}\n`);
     } else {
       write(`[OK] binary ${spec.label}: ${verStr} (${found})\n`);

@@ -26,7 +26,7 @@ describe("public npm package readiness", () => {
   it("pins unscoped belive-aihub metadata, public registry config, and provenance-compatible repository URL", () => {
     const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     expect(pkg.name).toBe("belive-aihub");
-    expect(pkg.version).toBe("0.3.0");
+    expect(pkg.version).toBe("0.4.0");
     expect(pkg.private).toBeUndefined();
     expect(pkg.dependencies).toBeUndefined();
     expect(pkg.bin).toEqual({ aihub: "./dist/cli.js" });
@@ -90,10 +90,10 @@ describe("public npm package readiness", () => {
   });
 
   it("verifies exact v<package.json version> tag alignment", () => {
-    expect(() => verifyReleaseTag("v0.3.0", "0.3.0")).not.toThrow();
-    expect(() => verifyReleaseTag("0.3.0", "0.3.0")).toThrow(/must equal v0\.3\.0/);
-    expect(() => verifyReleaseTag("v0.3.1", "0.3.0")).toThrow(/must equal v0\.3\.0/);
-    expect(() => verifyReleaseTag("", "0.3.0")).toThrow(/must equal v0\.3\.0/);
+    expect(() => verifyReleaseTag("v0.4.0", "0.4.0")).not.toThrow();
+    expect(() => verifyReleaseTag("0.4.0", "0.4.0")).toThrow(/must equal v0\.4\.0/);
+    expect(() => verifyReleaseTag("v0.4.1", "0.4.0")).toThrow(/must equal v0\.4\.0/);
+    expect(() => verifyReleaseTag("", "0.4.0")).toThrow(/must equal v0\.4\.0/);
   });
 
   it("ships a GitHub Actions npm publish workflow with OIDC provenance and tag verification", () => {
